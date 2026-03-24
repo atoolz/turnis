@@ -1,0 +1,7 @@
+*.db
+*.db-journal
+*.db-wal
+/turnis
+turnis.yaml
+dist/
+.env

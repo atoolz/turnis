@@ -1,0 +1,37 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+  base_url: http://localhost:8080
+
+database:
+  driver: sqlite
+  dsn: turnis.db
+
+log:
+  level: info
+
+# Slack integration (primary notification channel)
+# slack:
+#   bot_token: xoxb-your-bot-token
+#   app_token: xapp-your-app-token
+#   signing_secret: your-signing-secret
+
+# Twilio (BYOT - Bring Your Own Twilio)
+# SMS costs ~$0.0079/message. A team paging 100 times/month pays ~$0.79.
+# twilio:
+#   account_sid: your-account-sid
+#   auth_token: your-auth-token
+#   from_number: +1234567890
+
+# ntfy push notifications (free, no mobile app to build)
+# Install ntfy app on your phone, subscribe to your personal topic.
+ntfy:
+  server: https://ntfy.sh
+
+# Email (SMTP)
+# email:
+#   smtp_host: smtp.gmail.com
+#   smtp_port: 587
+#   from: turnis@yourcompany.com
+#   username: turnis@yourcompany.com
+#   password: your-app-password
