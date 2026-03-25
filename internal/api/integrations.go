@@ -53,6 +53,12 @@ func createIntegrationHandler(db *store.DB) http.HandlerFunc {
 			return
 		}
 
+		if auditErr := db.RecordAudit(r.Context(), "", "integration.created", "integration", integration.ID, map[string]string{
+			"name": integration.Name,
+		}); auditErr != nil {
+			slog.Error("failed to record audit for integration creation", "error", auditErr)
+		}
+
 		writeJSON(w, http.StatusCreated, integration)
 	}
 }
@@ -65,6 +71,10 @@ func deleteIntegrationHandler(db *store.DB) http.HandlerFunc {
 			slog.Error("failed to delete integration", "error", err, "integration_id", integrationID)
 			writeError(w, http.StatusNotFound, "integration not found")
 			return
+		}
+
+		if auditErr := db.RecordAudit(r.Context(), "", "integration.deleted", "integration", integrationID, nil); auditErr != nil {
+			slog.Error("failed to record audit for integration deletion", "error", auditErr)
 		}
 
 		w.WriteHeader(http.StatusNoContent)

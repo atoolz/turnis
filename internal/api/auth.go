@@ -1,11 +1,13 @@
 package api
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/atoolz/turnis/internal/store"
 )
@@ -21,12 +23,6 @@ const apiKeyContextKey contextKey = "api_key"
 func APIKeyAuth(db *store.DB) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Exempt /api/v1/status from authentication.
-			if r.URL.Path == "/api/v1/status" {
-				next.ServeHTTP(w, r)
-				return
-			}
-
 			header := r.Header.Get("Authorization")
 			if header == "" || !strings.HasPrefix(header, "Bearer ") {
 				writeError(w, http.StatusUnauthorized, "missing or invalid Authorization header")
@@ -49,13 +45,17 @@ func APIKeyAuth(db *store.DB) func(http.Handler) http.Handler {
 			}
 
 			// Update last_used_at in the background to avoid adding latency.
+			// Use a detached context since the request context is cancelled after the handler returns.
 			go func() {
-				if err := db.UpdateAPIKeyLastUsed(r.Context(), key.ID); err != nil {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := db.UpdateAPIKeyLastUsed(ctx, key.ID); err != nil {
 					slog.Error("failed to update api key last_used_at", "error", err, "key_id", key.ID)
 				}
 			}()
 
-			next.ServeHTTP(w, r)
+			ctx := context.WithValue(r.Context(), apiKeyContextKey, key)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

@@ -47,6 +47,12 @@ func createTeamHandler(db *store.DB) http.HandlerFunc {
 			return
 		}
 
+		if auditErr := db.RecordAudit(r.Context(), "", "team.created", "team", team.ID, map[string]string{
+			"name": team.Name,
+		}); auditErr != nil {
+			slog.Error("failed to record audit for team creation", "error", auditErr)
+		}
+
 		writeJSON(w, http.StatusCreated, team)
 	}
 }
@@ -74,6 +80,10 @@ func deleteTeamHandler(db *store.DB) http.HandlerFunc {
 			slog.Error("failed to delete team", "error", err, "team_id", teamID)
 			writeError(w, http.StatusNotFound, "team not found")
 			return
+		}
+
+		if auditErr := db.RecordAudit(r.Context(), "", "team.deleted", "team", teamID, nil); auditErr != nil {
+			slog.Error("failed to record audit for team deletion", "error", auditErr)
 		}
 
 		w.WriteHeader(http.StatusNoContent)
