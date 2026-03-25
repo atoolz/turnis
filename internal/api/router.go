@@ -39,6 +39,12 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 			r.Get("/{userID}", getUserHandler(db))
 			r.Put("/{userID}", updateUserHandler(db))
 			r.Delete("/{userID}", deleteUserHandler(db))
+
+			r.Route("/{userID}/notification-rules", func(r chi.Router) {
+				r.Get("/", listNotificationRulesHandler(db))
+				r.Post("/", createNotificationRuleHandler(db))
+				r.Delete("/{ruleID}", deleteNotificationRuleHandler(db))
+			})
 		})
 
 		r.Route("/schedules", func(r chi.Router) {

@@ -65,6 +65,7 @@ func (db *DB) Migrate() error {
 		migrationIntegrations,
 		migrationAlerts,
 		migrationDeliveryAttempts,
+		migrationNotificationRules,
 	}
 
 	for i, m := range migrations {
@@ -208,3 +209,17 @@ CREATE TABLE IF NOT EXISTS delivery_attempts (
 
 CREATE INDEX IF NOT EXISTS idx_delivery_alert ON delivery_attempts(alert_id);
 CREATE INDEX IF NOT EXISTS idx_delivery_user ON delivery_attempts(user_id);`
+
+var migrationNotificationRules = `
+CREATE TABLE IF NOT EXISTS notification_rules (
+	id         TEXT PRIMARY KEY,
+	user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	channel    TEXT NOT NULL,
+	priority   INTEGER NOT NULL DEFAULT 0,
+	start_time TEXT,
+	end_time   TEXT,
+	timezone   TEXT NOT NULL DEFAULT 'UTC',
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_rules_user ON notification_rules(user_id);`
