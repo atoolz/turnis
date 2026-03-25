@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
 )
@@ -444,6 +445,8 @@ func resolveChannel(rules []NotificationRule, fallback string, now time.Time) st
 
 		loc, err := time.LoadLocation(r.Timezone)
 		if err != nil {
+			slog.Warn("escalation: invalid timezone on notification rule, falling back to UTC",
+				"timezone", r.Timezone, "channel", r.Channel)
 			loc = time.UTC
 		}
 
