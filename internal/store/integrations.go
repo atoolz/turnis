@@ -92,6 +92,31 @@ func (db *DB) ListIntegrations(ctx context.Context) ([]Integration, error) {
 	return integrations, rows.Err()
 }
 
+func (db *DB) GetIntegrationsByTeam(ctx context.Context, teamID string) ([]Integration, error) {
+	rows, err := db.conn.QueryContext(ctx,
+		`SELECT id, name, team_id, type, escalation_policy_id, token, created_at, updated_at FROM integrations WHERE team_id = ? ORDER BY name`,
+		teamID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying integrations by team: %w", err)
+	}
+	defer rows.Close()
+
+	var integrations []Integration
+	for rows.Next() {
+		var i Integration
+		var epID *string
+		if err := rows.Scan(&i.ID, &i.Name, &i.TeamID, &i.Type, &epID, &i.Token, &i.CreatedAt, &i.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scanning integration: %w", err)
+		}
+		if epID != nil {
+			i.EscalationPolicyID = *epID
+		}
+		integrations = append(integrations, i)
+	}
+	return integrations, rows.Err()
+}
+
 func (db *DB) GetIntegration(ctx context.Context, id string) (*Integration, error) {
 	var i Integration
 	var epID *string

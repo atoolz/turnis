@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/slack-go/slack"
 
 	"github.com/atoolz/turnis/internal/config"
@@ -24,7 +25,14 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Heartbeat("/healthz"))
 
+	// Prometheus metrics endpoint, outside auth middleware.
+	r.Handle("/metrics", promhttp.Handler())
+
+	// Readiness probe: pings the database.
+	r.Get("/readyz", readyzHandler(db))
+
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(APIKeyAuth(db))
 		r.Get("/status", statusHandler)
 
 		r.Route("/teams", func(r chi.Router) {
@@ -75,6 +83,8 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 			r.Get("/{policyID}", getPolicyHandler(db))
 			r.Delete("/{policyID}", deletePolicyHandler(db))
 		})
+
+		r.Get("/audit", listAuditLogHandler(db))
 	})
 
 	// TwiML endpoints are called by Twilio when a voice call connects.
@@ -102,6 +112,22 @@ func statusHandler(w http.ResponseWriter, r *http.Request) {
 		"status":  "ok",
 		"service": "turnis",
 	})
+}
+
+func readyzHandler(db *store.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := db.Conn().PingContext(r.Context()); err != nil {
+			slog.Error("readiness check failed", "error", err)
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"status": "unavailable",
+				"error":  "database ping failed",
+			})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{
+			"status": "ready",
+		})
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
