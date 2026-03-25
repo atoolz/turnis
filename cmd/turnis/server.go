@@ -17,8 +17,10 @@ import (
 	"github.com/atoolz/turnis/internal/config"
 	"github.com/atoolz/turnis/internal/escalation"
 	"github.com/atoolz/turnis/internal/notify"
+	emailSender "github.com/atoolz/turnis/internal/notify/email"
 	ntfySender "github.com/atoolz/turnis/internal/notify/ntfy"
 	slackSender "github.com/atoolz/turnis/internal/notify/slack"
+	twilioSender "github.com/atoolz/turnis/internal/notify/twilio"
 	webhookSender "github.com/atoolz/turnis/internal/notify/webhook"
 	"github.com/atoolz/turnis/internal/store"
 )
@@ -59,6 +61,16 @@ func runServer(cfg *config.Config) error {
 		if cfg.Slack.SigningSecret == "" {
 			slog.Warn("slack bot token set but signing_secret is missing; interactive buttons will not work")
 		}
+	}
+
+	if cfg.Twilio.AccountSID != "" {
+		dispatcher.Register(twilioSender.NewSMS(cfg.Twilio.AccountSID, cfg.Twilio.AuthToken, cfg.Twilio.FromNumber))
+		dispatcher.Register(twilioSender.NewVoice(cfg.Twilio.AccountSID, cfg.Twilio.AuthToken, cfg.Twilio.FromNumber, cfg.Server.BaseURL))
+		slog.Info("twilio integration enabled")
+	}
+	if cfg.Email.SMTPHost != "" {
+		dispatcher.Register(emailSender.New(cfg.Email.SMTPHost, cfg.Email.SMTPPort, cfg.Email.From, cfg.Email.Username, cfg.Email.Password))
+		slog.Info("email integration enabled")
 	}
 
 	sa := &storeAdapter{db: db}

@@ -70,6 +70,12 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 		})
 	})
 
+	// TwiML endpoints are called by Twilio when a voice call connects.
+	// They rely on the 128-bit UUID alertID for access control.
+	// TODO(#26): Add Twilio request signature validation when API auth lands.
+	r.Get("/twiml/{alertID}", twimlHandler(db))
+	r.Post("/twiml/{alertID}/gather", twimlGatherHandler(db, engine))
+
 	r.Post("/webhook/{token}", webhookIngestHandler(db, cfg, engine))
 
 	if slackClient != nil && cfg.Slack.SigningSecret != "" {

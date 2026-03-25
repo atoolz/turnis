@@ -168,6 +168,31 @@ func (db *DB) GetUserBySlackID(ctx context.Context, slackID string) (*User, erro
 	return &u, nil
 }
 
+func (db *DB) GetUserByPhone(ctx context.Context, phone string) (*User, error) {
+	var u User
+	var ph, sid, ntfyTopic, teamID *string
+	err := db.conn.QueryRowContext(ctx,
+		`SELECT id, name, email, phone, slack_id, ntfy_topic, team_id, created_at, updated_at FROM users WHERE phone = ?`,
+		phone,
+	).Scan(&u.ID, &u.Name, &u.Email, &ph, &sid, &ntfyTopic, &teamID, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("getting user by phone %s: %w", phone, err)
+	}
+	if ph != nil {
+		u.Phone = *ph
+	}
+	if sid != nil {
+		u.SlackID = *sid
+	}
+	if ntfyTopic != nil {
+		u.NtfyTopic = *ntfyTopic
+	}
+	if teamID != nil {
+		u.TeamID = *teamID
+	}
+	return &u, nil
+}
+
 func (db *DB) DeleteUser(ctx context.Context, id string) error {
 	res, err := db.conn.ExecContext(ctx, `DELETE FROM users WHERE id = ?`, id)
 	if err != nil {
