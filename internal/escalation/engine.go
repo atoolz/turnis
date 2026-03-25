@@ -198,11 +198,12 @@ func (e *Engine) advanceToNextStep(alertID string, policy *Policy) {
 		return
 	}
 
-	ta.currentStep++
-	if ta.currentStep >= len(policy.Steps) {
-		ta.currentStep = 0
+	nextIdx := ta.currentStep + 1
+	if nextIdx >= len(policy.Steps) {
+		nextIdx = 0
 		ta.currentRepeat++
 	}
+	ta.currentStep = nextIdx
 
 	stepCopy := *step
 	e.mu.Unlock()
@@ -300,19 +301,23 @@ func (e *Engine) scheduleTimeout(alertID string, policy *Policy, step *Step) {
 		return
 	}
 
+	e.wg.Add(1)
 	ta.timer = time.AfterFunc(timeout, func() {
-		// Check if alert is still tracked before any DB writes
+		defer e.wg.Done()
+
+		// Check if alert is still tracked before any DB writes.
 		e.mu.Lock()
 		_, exists := e.tracked[alertID]
 		if !exists {
 			e.mu.Unlock()
 			return
 		}
-		e.mu.Unlock()
-
+		// Mark escalated while still holding the lock to prevent
+		// Acknowledge from racing between the check and the DB write.
 		if err := e.store.MarkDeliveryEscalated(e.ctx, alertID); err != nil {
 			slog.Error("escalation: failed to mark escalated", "alert_id", alertID, "error", err)
 		}
+		e.mu.Unlock()
 
 		slog.Info("escalation: step timed out, escalating",
 			"alert_id", alertID,
