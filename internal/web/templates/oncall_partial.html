@@ -1,0 +1,22 @@
+{{define "oncall_list"}}
+{{if .OnCall}}
+<table>
+    <thead>
+        <tr>
+            <th>Schedule</th>
+            <th>On-call</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .OnCall}}
+        <tr>
+            <td>{{.ScheduleName}}</td>
+            <td>{{.UserName}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p>No schedules configured.</p>
+{{end}}
+{{end}}

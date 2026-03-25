@@ -54,6 +54,50 @@ func (db *DB) RecordDelivery(ctx context.Context, alertID, userID, channel, addr
 	return d, nil
 }
 
+// RecentDeliveryAttempt extends DeliveryAttempt with the user name for display.
+type RecentDeliveryAttempt struct {
+	DeliveryAttempt
+	UserName string `json:"user_name"`
+}
+
+func (db *DB) ListRecentDeliveries(ctx context.Context, limit int) ([]RecentDeliveryAttempt, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	rows, err := db.conn.QueryContext(ctx,
+		`SELECT d.id, d.alert_id, d.user_id, d.channel, d.address, d.dispatched_at,
+		        d.delivered_at, d.acked_at, d.failed_at, d.failure_reason, d.escalated_at,
+		        COALESCE(u.name, '')
+		 FROM delivery_attempts d
+		 LEFT JOIN users u ON u.id = d.user_id
+		 ORDER BY d.dispatched_at DESC
+		 LIMIT ?`, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("querying recent deliveries: %w", err)
+	}
+	defer rows.Close()
+
+	var results []RecentDeliveryAttempt
+	for rows.Next() {
+		var d RecentDeliveryAttempt
+		var failureReason *string
+		if err := rows.Scan(
+			&d.ID, &d.AlertID, &d.UserID, &d.Channel, &d.Address, &d.DispatchedAt,
+			&d.DeliveredAt, &d.AckedAt, &d.FailedAt, &failureReason, &d.EscalatedAt,
+			&d.UserName,
+		); err != nil {
+			return nil, fmt.Errorf("scanning delivery attempt: %w", err)
+		}
+		if failureReason != nil {
+			d.FailureReason = *failureReason
+		}
+		results = append(results, d)
+	}
+	return results, rows.Err()
+}
+
 func (db *DB) MarkDeliveryEscalated(ctx context.Context, alertID string) error {
 	now := time.Now().UTC()
 	_, err := db.conn.ExecContext(ctx,

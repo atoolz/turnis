@@ -12,6 +12,7 @@ import (
 	"github.com/atoolz/turnis/internal/config"
 	"github.com/atoolz/turnis/internal/escalation"
 	"github.com/atoolz/turnis/internal/store"
+	"github.com/atoolz/turnis/internal/web"
 )
 
 func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slackClient *slack.Client) http.Handler {

@@ -1,0 +1,65 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+
+<div class="grid">
+    <section>
+        <h2>On-call now</h2>
+        <div id="oncall-section"
+             hx-get="/web/oncall"
+             hx-trigger="every 30s"
+             hx-swap="innerHTML">
+            {{template "oncall_list" .}}
+        </div>
+    </section>
+
+    <section>
+        <h2>Active alerts</h2>
+        {{if eq .Alerts.Total 0}}
+            <p>No active alerts.</p>
+        {{else}}
+            <p>
+                {{if gt .Alerts.Critical 0}}
+                    <span class="badge badge-critical">{{.Alerts.Critical}} critical</span>
+                {{end}}
+                {{if gt .Alerts.Warning 0}}
+                    <span class="badge badge-warning">{{.Alerts.Warning}} warning</span>
+                {{end}}
+                {{if gt .Alerts.Info 0}}
+                    <span class="badge badge-info">{{.Alerts.Info}} info</span>
+                {{end}}
+            </p>
+            <p><a href="/alerts">View all alerts</a></p>
+        {{end}}
+    </section>
+</div>
+
+<section>
+    <h2>Recent activity</h2>
+    {{if .Activity}}
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Channel</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Activity}}
+                <tr>
+                    <td>{{.Time.Format "2006-01-02 15:04:05"}}</td>
+                    <td>{{.User}}</td>
+                    <td>{{.Channel}}</td>
+                    <td><span class="badge badge-status-{{.Status}}">{{.Status}}</span></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </figure>
+    {{else}}
+        <p>No recent delivery attempts.</p>
+    {{end}}
+</section>
+{{end}}
