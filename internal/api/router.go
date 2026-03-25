@@ -26,14 +26,17 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 	r.Use(middleware.Heartbeat("/healthz"))
 
 	// Prometheus metrics endpoint, outside auth middleware.
+	// If exposing Turnis publicly, protect /metrics at the network level.
 	r.Handle("/metrics", promhttp.Handler())
 
 	// Readiness probe: pings the database.
 	r.Get("/readyz", readyzHandler(db))
 
+	// Status endpoint outside auth for health checks.
+	r.Get("/api/v1/status", statusHandler)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(APIKeyAuth(db))
-		r.Get("/status", statusHandler)
 
 		r.Route("/teams", func(r chi.Router) {
 			r.Get("/", listTeamsHandler(db))
