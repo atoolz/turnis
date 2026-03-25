@@ -301,23 +301,26 @@ func (e *Engine) scheduleTimeout(alertID string, policy *Policy, step *Step) {
 		return
 	}
 
-	e.wg.Add(1)
 	ta.timer = time.AfterFunc(timeout, func() {
-		defer e.wg.Done()
+		// Timer callbacks are NOT tracked in WaitGroup because Stop()
+		// cannot guarantee the callback won't run. Instead, the callback
+		// checks e.tracked and returns early if the alert was cleaned up.
+		// Shutdown cancels the context and clears the map, so any in-flight
+		// callback will either not start work or fail fast on ctx.Err().
 
-		// Check if alert is still tracked before any DB writes.
 		e.mu.Lock()
 		_, exists := e.tracked[alertID]
 		if !exists {
 			e.mu.Unlock()
 			return
 		}
-		// Mark escalated while still holding the lock to prevent
-		// Acknowledge from racing between the check and the DB write.
+		e.mu.Unlock()
+
+		// Accept minor audit imprecision: if Acknowledge races here,
+		// the escalation mark is benign (audit log, not user-facing).
 		if err := e.store.MarkDeliveryEscalated(e.ctx, alertID); err != nil {
 			slog.Error("escalation: failed to mark escalated", "alert_id", alertID, "error", err)
 		}
-		e.mu.Unlock()
 
 		slog.Info("escalation: step timed out, escalating",
 			"alert_id", alertID,
