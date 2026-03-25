@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sort"
 	"sync"
 	"time"
 )
@@ -16,6 +17,7 @@ type Store interface {
 	GetSchedule(ctx context.Context, id string) (Schedule, error)
 	GetOverrides(ctx context.Context, scheduleID string) ([]Override, error)
 	GetUser(ctx context.Context, id string) (User, error)
+	GetNotificationRules(ctx context.Context, userID string) ([]NotificationRule, error)
 	RecordDelivery(ctx context.Context, alertID, userID, channel, address string, success bool, failureReason string) error
 	MarkDeliveryEscalated(ctx context.Context, alertID string) error
 }
@@ -61,6 +63,14 @@ type Override struct {
 	UserID    string
 	StartTime time.Time
 	EndTime   time.Time
+}
+
+type NotificationRule struct {
+	Channel   string
+	Priority  int
+	StartTime string
+	EndTime   string
+	Timezone  string
 }
 
 type User struct {
@@ -255,18 +265,28 @@ func (e *Engine) executeStep(alertID string, policy *Policy, step *Step) {
 		return
 	}
 
-	address := resolveAddress(user, step.NotifyChannel)
+	// Resolve notification channel: user rules override step default.
+	channel := step.NotifyChannel
+	rules, rulesErr := e.store.GetNotificationRules(ctx, userID)
+	if rulesErr != nil {
+		slog.Warn("escalation: failed to get notification rules, using step channel",
+			"alert_id", alertID, "user_id", userID, "error", rulesErr)
+	} else if len(rules) > 0 {
+		channel = resolveChannel(rules, step.NotifyChannel, time.Now())
+	}
+
+	address := resolveAddress(user, channel)
 	ackURL := fmt.Sprintf("%s/api/v1/alerts/%s/ack", e.baseURL, alertID)
 	resolveURL := fmt.Sprintf("%s/api/v1/alerts/%s/resolve", e.baseURL, alertID)
 
 	slog.Info("escalation: notifying user",
 		"alert_id", alertID,
 		"user", user.Name,
-		"channel", step.NotifyChannel,
+		"channel", channel,
 		"step", step.StepOrder,
 	)
 
-	success, notifyErr := e.notifier.Notify(ctx, step.NotifyChannel, address, a, user, ackURL, resolveURL)
+	success, notifyErr := e.notifier.Notify(ctx, channel, address, a, user, ackURL, resolveURL)
 
 	failReason := ""
 	if notifyErr != nil {
@@ -274,12 +294,12 @@ func (e *Engine) executeStep(alertID string, policy *Policy, step *Step) {
 		slog.Error("escalation: notification failed",
 			"alert_id", alertID,
 			"user_id", user.ID,
-			"channel", step.NotifyChannel,
+			"channel", channel,
 			"error", notifyErr,
 		)
 	}
 
-	if recordErr := e.store.RecordDelivery(ctx, alertID, user.ID, step.NotifyChannel, address, success, failReason); recordErr != nil {
+	if recordErr := e.store.RecordDelivery(ctx, alertID, user.ID, channel, address, success, failReason); recordErr != nil {
 		slog.Error("escalation: failed to record delivery", "error", recordErr)
 	}
 
@@ -403,6 +423,75 @@ func (e *Engine) Shutdown() {
 	e.wg.Wait()
 
 	slog.Info("escalation engine stopped", "cancelled_timers", count)
+}
+
+// resolveChannel picks the best notification channel for a user based on their
+// notification rules. Rules are evaluated in descending priority order. A rule
+// matches if the current time (in the rule's timezone) falls within its time
+// window, or if no time window is set (always active). Overnight windows where
+// start > end (e.g. 22:00 to 08:00) are handled correctly.
+// If no rules match, the fallback channel is returned.
+func resolveChannel(rules []NotificationRule, fallback string, now time.Time) string {
+	// Sort defensively by priority descending. The store returns rules ordered,
+	// but callers may construct rules from other sources (tests, future code).
+	sort.Slice(rules, func(i, j int) bool {
+		return rules[i].Priority > rules[j].Priority
+	})
+
+	for _, r := range rules {
+		if r.StartTime == "" || r.EndTime == "" {
+			return r.Channel
+		}
+
+		loc, err := time.LoadLocation(r.Timezone)
+		if err != nil {
+			slog.Warn("escalation: invalid timezone on notification rule, falling back to UTC",
+				"timezone", r.Timezone, "channel", r.Channel)
+			loc = time.UTC
+		}
+
+		localNow := now.In(loc)
+		nowMinutes := localNow.Hour()*60 + localNow.Minute()
+
+		startParts := parseHHMM(r.StartTime)
+		endParts := parseHHMM(r.EndTime)
+
+		if startParts < 0 || endParts < 0 {
+			continue
+		}
+
+		if startParts <= endParts {
+			// Normal window: e.g. 09:00 to 17:00
+			if nowMinutes >= startParts && nowMinutes < endParts {
+				return r.Channel
+			}
+		} else {
+			// Overnight window: e.g. 22:00 to 08:00
+			if nowMinutes >= startParts || nowMinutes < endParts {
+				return r.Channel
+			}
+		}
+	}
+	return fallback
+}
+
+// parseHHMM parses an "HH:MM" string into minutes since midnight. Returns -1
+// on invalid input.
+func parseHHMM(s string) int {
+	if len(s) != 5 || s[2] != ':' {
+		return -1
+	}
+	for _, i := range []int{0, 1, 3, 4} {
+		if s[i] < '0' || s[i] > '9' {
+			return -1
+		}
+	}
+	h := int(s[0]-'0')*10 + int(s[1]-'0')
+	m := int(s[3]-'0')*10 + int(s[4]-'0')
+	if h > 23 || m > 59 {
+		return -1
+	}
+	return h*60 + m
 }
 
 func resolveAddress(user User, channel string) string {

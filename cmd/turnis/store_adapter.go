@@ -100,6 +100,24 @@ func (a *storeAdapter) GetUser(ctx context.Context, id string) (escalation.User,
 	}, nil
 }
 
+func (a *storeAdapter) GetNotificationRules(ctx context.Context, userID string) ([]escalation.NotificationRule, error) {
+	rules, err := a.db.ListNotificationRules(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]escalation.NotificationRule, len(rules))
+	for i, r := range rules {
+		result[i] = escalation.NotificationRule{
+			Channel:   r.Channel,
+			Priority:  r.Priority,
+			StartTime: r.StartTime,
+			EndTime:   r.EndTime,
+			Timezone:  r.Timezone,
+		}
+	}
+	return result, nil
+}
+
 func (a *storeAdapter) RecordDelivery(ctx context.Context, alertID, userID, channel, address string, success bool, failureReason string) error {
 	_, err := a.db.RecordDelivery(ctx, alertID, userID, channel, address, success, failureReason)
 	return err
