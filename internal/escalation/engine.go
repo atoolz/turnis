@@ -282,7 +282,6 @@ func (e *Engine) executeStep(alertID string, policy *Policy, step *Step) {
 			"error", notifyErr,
 		)
 	}
-	_ = success
 
 	if recordErr := e.store.RecordDelivery(ctx, alertID, user.ID, step.NotifyChannel, address, success, failReason); recordErr != nil {
 		slog.Error("escalation: failed to record delivery", "error", recordErr)
