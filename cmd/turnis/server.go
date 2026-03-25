@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -48,7 +49,11 @@ func runServer(cfg *config.Config) error {
 
 	var slackClient *slack.Client
 	if cfg.Slack.BotToken != "" {
-		slackClient = slack.New(cfg.Slack.BotToken)
+		opts := []slack.Option{}
+		if strings.HasPrefix(cfg.Slack.AppToken, "xapp-") {
+			opts = append(opts, slack.OptionAppLevelToken(cfg.Slack.AppToken))
+		}
+		slackClient = slack.New(cfg.Slack.BotToken, opts...)
 		dispatcher.Register(slackSender.New(slackClient))
 		slog.Info("slack integration enabled")
 		if cfg.Slack.SigningSecret == "" {
@@ -61,6 +66,20 @@ func runServer(cfg *config.Config) error {
 	engine := escalation.NewEngine(sa, na, cfg.Server.BaseURL)
 
 	router := api.NewRouter(db, cfg, engine, slackClient)
+
+	ctx, ctxCancel := context.WithCancel(context.Background())
+	defer ctxCancel()
+
+	if slackClient != nil && strings.HasPrefix(cfg.Slack.AppToken, "xapp-") {
+		startSocketMode(ctx, slackClient, cfg.Slack.AppToken, db, engine)
+		slog.Info("slack socket mode enabled")
+	}
+
+	if slackClient != nil {
+		handoff := slackSender.NewHandoffMonitor(db, slackClient)
+		go handoff.Run(ctx)
+		slog.Info("handoff monitor enabled")
+	}
 
 	srv := &http.Server{
 		Addr:         cfg.Server.ListenAddr(),
@@ -93,11 +112,12 @@ func runServer(cfg *config.Config) error {
 	}
 
 	engine.Shutdown()
+	ctxCancel() // stop socket mode and handoff monitor
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return fmt.Errorf("shutdown error: %w", err)
 	}
 
