@@ -96,7 +96,7 @@ func slackInteractionHandler(db *store.DB, engine *escalation.Engine, slackClien
 				statusText = fmt.Sprintf("\u2611\uFE0F Resolved by @%s at %s", slackUser, now)
 			}
 
-			updatedBlocks := replaceActionsWithStatus(callback.Message.Blocks.BlockSet, statusText)
+			updatedBlocks := ReplaceActionsWithStatus(callback.Message.Blocks.BlockSet, statusText)
 			_, _, _, err := slackClient.UpdateMessageContext(
 				r.Context(),
 				callback.Channel.ID,
@@ -112,7 +112,8 @@ func slackInteractionHandler(db *store.DB, engine *escalation.Engine, slackClien
 	}
 }
 
-func replaceActionsWithStatus(blocks []slack.Block, statusText string) []slack.Block {
+// ReplaceActionsWithStatus replaces action blocks with a context block showing the given status text.
+func ReplaceActionsWithStatus(blocks []slack.Block, statusText string) []slack.Block {
 	var result []slack.Block
 	for _, b := range blocks {
 		if b.BlockType() == slack.MBTAction {

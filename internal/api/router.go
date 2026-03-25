@@ -74,6 +74,7 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 
 	if slackClient != nil && cfg.Slack.SigningSecret != "" {
 		r.Post("/slack/interactions", slackInteractionHandler(db, engine, slackClient, cfg.Slack.SigningSecret))
+		r.Post("/slack/commands", slackCommandsHandler(db, engine, slackClient, cfg.Slack.SigningSecret))
 	}
 
 	return r
