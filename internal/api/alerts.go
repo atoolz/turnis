@@ -10,10 +10,11 @@ import (
 
 	"github.com/atoolz/turnis/internal/alert"
 	"github.com/atoolz/turnis/internal/config"
+	"github.com/atoolz/turnis/internal/escalation"
 	"github.com/atoolz/turnis/internal/store"
 )
 
-func ingestAlertHandler(db *store.DB, _ *config.Config) http.HandlerFunc {
+func ingestAlertHandler(db *store.DB, _ *config.Config, engine *escalation.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var input struct {
 			IntegrationID string              `json:"integration_id"`
@@ -62,6 +63,10 @@ func ingestAlertHandler(db *store.DB, _ *config.Config) http.HandlerFunc {
 			return
 		}
 
+		if engine != nil {
+			engine.Enqueue(a.ID)
+		}
+
 		writeJSON(w, http.StatusCreated, a)
 	}
 }
@@ -84,7 +89,7 @@ func listAlertsHandler(db *store.DB) http.HandlerFunc {
 	}
 }
 
-func ackAlertHandler(db *store.DB) http.HandlerFunc {
+func ackAlertHandler(db *store.DB, engine *escalation.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		alertID := chi.URLParam(r, "alertID")
 
@@ -107,11 +112,15 @@ func ackAlertHandler(db *store.DB) http.HandlerFunc {
 			return
 		}
 
+		if engine != nil {
+			engine.Acknowledge(alertID)
+		}
+
 		writeJSON(w, http.StatusOK, a)
 	}
 }
 
-func resolveAlertHandler(db *store.DB) http.HandlerFunc {
+func resolveAlertHandler(db *store.DB, engine *escalation.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		alertID := chi.URLParam(r, "alertID")
 
@@ -122,11 +131,15 @@ func resolveAlertHandler(db *store.DB) http.HandlerFunc {
 			return
 		}
 
+		if engine != nil {
+			engine.Resolve(alertID)
+		}
+
 		writeJSON(w, http.StatusOK, a)
 	}
 }
 
-func webhookIngestHandler(db *store.DB, _ *config.Config) http.HandlerFunc {
+func webhookIngestHandler(db *store.DB, _ *config.Config, engine *escalation.Engine) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		token := chi.URLParam(r, "token")
 		if token == "" {
@@ -171,6 +184,10 @@ func webhookIngestHandler(db *store.DB, _ *config.Config) http.HandlerFunc {
 			slog.Error("failed to create alert from webhook", "error", err)
 			writeError(w, http.StatusInternalServerError, "failed to create alert")
 			return
+		}
+
+		if engine != nil {
+			engine.Enqueue(a.ID)
 		}
 
 		writeJSON(w, http.StatusCreated, a)
