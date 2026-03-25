@@ -10,11 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/slack-go/slack"
+
 	"github.com/atoolz/turnis/internal/api"
 	"github.com/atoolz/turnis/internal/config"
 	"github.com/atoolz/turnis/internal/escalation"
 	"github.com/atoolz/turnis/internal/notify"
 	ntfySender "github.com/atoolz/turnis/internal/notify/ntfy"
+	slackSender "github.com/atoolz/turnis/internal/notify/slack"
 	webhookSender "github.com/atoolz/turnis/internal/notify/webhook"
 	"github.com/atoolz/turnis/internal/store"
 )
@@ -43,11 +46,21 @@ func runServer(cfg *config.Config) error {
 	dispatcher.Register(webhookSender.New())
 	dispatcher.Register(ntfySender.New(cfg.Ntfy.Server))
 
+	var slackClient *slack.Client
+	if cfg.Slack.BotToken != "" {
+		slackClient = slack.New(cfg.Slack.BotToken)
+		dispatcher.Register(slackSender.New(slackClient))
+		slog.Info("slack integration enabled")
+		if cfg.Slack.SigningSecret == "" {
+			slog.Warn("slack bot token set but signing_secret is missing; interactive buttons will not work")
+		}
+	}
+
 	sa := &storeAdapter{db: db}
 	na := &dispatcherAdapter{dispatcher: dispatcher}
 	engine := escalation.NewEngine(sa, na, cfg.Server.BaseURL)
 
-	router := api.NewRouter(db, cfg, engine)
+	router := api.NewRouter(db, cfg, engine, slackClient)
 
 	srv := &http.Server{
 		Addr:         cfg.Server.ListenAddr(),

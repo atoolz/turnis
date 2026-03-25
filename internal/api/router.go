@@ -7,13 +7,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/slack-go/slack"
 
 	"github.com/atoolz/turnis/internal/config"
 	"github.com/atoolz/turnis/internal/escalation"
 	"github.com/atoolz/turnis/internal/store"
 )
 
-func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine) http.Handler {
+func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slackClient *slack.Client) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -70,6 +71,10 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine) http
 	})
 
 	r.Post("/webhook/{token}", webhookIngestHandler(db, cfg, engine))
+
+	if slackClient != nil && cfg.Slack.SigningSecret != "" {
+		r.Post("/slack/interactions", slackInteractionHandler(db, engine, slackClient, cfg.Slack.SigningSecret))
+	}
 
 	return r
 }
