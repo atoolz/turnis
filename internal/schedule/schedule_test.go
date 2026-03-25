@@ -41,8 +41,6 @@ func makeSchedule(created time.Time, participants []string) *Schedule {
 }
 
 func TestWhosOnCall_WeeklyRotation(t *testing.T) {
-	t.Helper()
-
 	// Schedule created on Monday 2025-01-06 at 08:00 UTC.
 	// First handoff: 2025-01-06 09:00 UTC (Monday).
 	// With 3 participants rotating weekly:

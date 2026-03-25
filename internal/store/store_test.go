@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,15 +17,12 @@ import (
 func setupTestDB(t *testing.T) *DB {
 	t.Helper()
 
+	// Each test gets its own isolated in-memory database.
+	// PRAGMA foreign_keys is enabled by store.New() automatically.
 	db, err := New(config.DatabaseConfig{
 		Driver: "sqlite",
-		DSN:    "file::memory:?cache=shared",
+		DSN:    fmt.Sprintf("file:%s?mode=memory&cache=private", t.Name()),
 	})
-	require.NoError(t, err)
-
-	// modernc.org/sqlite does not parse _foreign_keys=ON from the DSN,
-	// so we enable it explicitly via PRAGMA for tests.
-	_, err = db.conn.Exec("PRAGMA foreign_keys = ON")
 	require.NoError(t, err)
 
 	require.NoError(t, db.Migrate())
