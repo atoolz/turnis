@@ -190,22 +190,18 @@ func (e *Engine) advanceToNextStep(alertID string, policy *Policy) {
 		return
 	}
 
-	step := NextStep(policy, ta.currentStep, ta.currentRepeat)
-	if step == nil {
+	result := NextStep(policy, ta.currentStep, ta.currentRepeat)
+	if result.Step == nil {
 		e.mu.Unlock()
 		slog.Info("escalation: exhausted all steps", "alert_id", alertID, "policy_id", ta.policyID)
 		e.cleanup(alertID)
 		return
 	}
 
-	nextIdx := ta.currentStep + 1
-	if nextIdx >= len(policy.Steps) {
-		nextIdx = 0
-		ta.currentRepeat++
-	}
-	ta.currentStep = nextIdx
+	ta.currentStep = result.NewStepIdx
+	ta.currentRepeat = result.NewRepeat
 
-	stepCopy := *step
+	stepCopy := *result.Step
 	e.mu.Unlock()
 
 	e.wg.Add(1)
