@@ -20,6 +20,7 @@ type DeliveryAttempt struct {
 	FailedAt      *time.Time `json:"failed_at,omitempty"`
 	FailureReason string     `json:"failure_reason,omitempty"`
 	EscalatedAt   *time.Time `json:"escalated_at,omitempty"`
+	RetryCount    int        `json:"retry_count"`
 }
 
 func (db *DB) RecordDelivery(ctx context.Context, alertID, userID, channel, address string, success bool, failureReason string) (*DeliveryAttempt, error) {
@@ -68,6 +69,7 @@ func (db *DB) ListRecentDeliveries(ctx context.Context, limit int) ([]RecentDeli
 	rows, err := db.conn.QueryContext(ctx,
 		`SELECT d.id, d.alert_id, d.user_id, d.channel, d.address, d.dispatched_at,
 		        d.delivered_at, d.acked_at, d.failed_at, d.failure_reason, d.escalated_at,
+		        d.retry_count,
 		        COALESCE(u.name, '')
 		 FROM delivery_attempts d
 		 LEFT JOIN users u ON u.id = d.user_id
@@ -86,6 +88,7 @@ func (db *DB) ListRecentDeliveries(ctx context.Context, limit int) ([]RecentDeli
 		if err := rows.Scan(
 			&d.ID, &d.AlertID, &d.UserID, &d.Channel, &d.Address, &d.DispatchedAt,
 			&d.DeliveredAt, &d.AckedAt, &d.FailedAt, &failureReason, &d.EscalatedAt,
+			&d.RetryCount,
 			&d.UserName,
 		); err != nil {
 			return nil, fmt.Errorf("scanning delivery attempt: %w", err)
@@ -96,6 +99,18 @@ func (db *DB) ListRecentDeliveries(ctx context.Context, limit int) ([]RecentDeli
 		results = append(results, d)
 	}
 	return results, rows.Err()
+}
+
+func (db *DB) UpdateDeliveryRetry(ctx context.Context, id string, retryCount int, failureReason string) error {
+	now := time.Now().UTC()
+	_, err := db.conn.ExecContext(ctx,
+		`UPDATE delivery_attempts SET retry_count = ?, failure_reason = ?, failed_at = ? WHERE id = ?`,
+		retryCount, failureReason, now, id,
+	)
+	if err != nil {
+		return fmt.Errorf("updating delivery retry for %s: %w", id, err)
+	}
+	return nil
 }
 
 func (db *DB) MarkDeliveryEscalated(ctx context.Context, alertID string) error {

@@ -182,6 +182,12 @@ func createOverrideHandler(db *store.DB) http.HandlerFunc {
 			return
 		}
 
+		if auditErr := db.RecordAudit(r.Context(), input.UserID, "override.created", "schedule", scheduleID, map[string]string{
+			"override_id": override.ID,
+		}); auditErr != nil {
+			slog.Error("failed to record audit for override creation", "error", auditErr)
+		}
+
 		writeJSON(w, http.StatusCreated, override)
 	}
 }

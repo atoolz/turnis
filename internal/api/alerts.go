@@ -63,6 +63,9 @@ func ingestAlertHandler(db *store.DB, _ *config.Config, engine *escalation.Engin
 			return
 		}
 
+		AlertsTotal.WithLabelValues(string(a.Status), string(a.Severity)).Inc()
+		ActiveAlerts.Inc()
+
 		if engine != nil {
 			engine.Enqueue(a.ID)
 		}
@@ -116,6 +119,10 @@ func ackAlertHandler(db *store.DB, engine *escalation.Engine) http.HandlerFunc {
 			engine.Acknowledge(alertID)
 		}
 
+		if auditErr := db.RecordAudit(r.Context(), input.UserID, "alert.acknowledged", "alert", alertID, nil); auditErr != nil {
+			slog.Error("failed to record audit for alert ack", "error", auditErr)
+		}
+
 		writeJSON(w, http.StatusOK, a)
 	}
 }
@@ -133,6 +140,12 @@ func resolveAlertHandler(db *store.DB, engine *escalation.Engine) http.HandlerFu
 
 		if engine != nil {
 			engine.Resolve(alertID)
+		}
+
+		ActiveAlerts.Dec()
+
+		if auditErr := db.RecordAudit(r.Context(), "", "alert.resolved", "alert", alertID, nil); auditErr != nil {
+			slog.Error("failed to record audit for alert resolve", "error", auditErr)
 		}
 
 		writeJSON(w, http.StatusOK, a)
@@ -185,6 +198,9 @@ func webhookIngestHandler(db *store.DB, _ *config.Config, engine *escalation.Eng
 			writeError(w, http.StatusInternalServerError, "failed to create alert")
 			return
 		}
+
+		AlertsTotal.WithLabelValues(string(a.Status), string(a.Severity)).Inc()
+		ActiveAlerts.Inc()
 
 		if engine != nil {
 			engine.Enqueue(a.ID)
