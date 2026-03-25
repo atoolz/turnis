@@ -2,7 +2,12 @@ package store
 
 import (
 	"database/sql"
+	"embed"
 	"fmt"
+	"log/slog"
+	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 
 	_ "modernc.org/sqlite"
@@ -10,8 +15,12 @@ import (
 	"github.com/atoolz/turnis/internal/config"
 )
 
+//go:embed migrations/*.sql
+var migrationFS embed.FS
+
 type DB struct {
-	conn *sql.DB
+	conn   *sql.DB
+	driver string
 }
 
 func New(cfg config.DatabaseConfig) (*DB, error) {
@@ -44,7 +53,7 @@ func New(cfg config.DatabaseConfig) (*DB, error) {
 		}
 	}
 
-	return &DB{conn: conn}, nil
+	return &DB{conn: conn, driver: driver}, nil
 }
 
 func (db *DB) Close() error {
@@ -55,171 +64,146 @@ func (db *DB) Conn() *sql.DB {
 	return db.conn
 }
 
-func (db *DB) Migrate() error {
-	migrations := []string{
-		migrationTeams,
-		migrationUsers,
-		migrationSchedules,
-		migrationOverrides,
-		migrationEscalationPolicies,
-		migrationIntegrations,
-		migrationAlerts,
-		migrationDeliveryAttempts,
-		migrationNotificationRules,
+// parseMigrationVersion extracts the numeric version prefix from a migration
+// filename like "001_initial.sql" and returns 1.
+func parseMigrationVersion(filename string) (int, error) {
+	base := filepath.Base(filename)
+	parts := strings.SplitN(base, "_", 2)
+	if len(parts) < 2 {
+		return 0, fmt.Errorf("invalid migration filename: %s", filename)
+	}
+	v, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, fmt.Errorf("parsing version from %s: %w", filename, err)
+	}
+	return v, nil
+}
+
+type migration struct {
+	Version  int
+	Filename string
+	SQL      string
+}
+
+// loadMigrations reads all embedded SQL migration files and returns them
+// sorted by version number.
+func loadMigrations() ([]migration, error) {
+	entries, err := migrationFS.ReadDir("migrations")
+	if err != nil {
+		return nil, fmt.Errorf("reading migrations dir: %w", err)
 	}
 
-	for i, m := range migrations {
-		if _, err := db.conn.Exec(m); err != nil {
-			return fmt.Errorf("migration %d: %w", i, err)
+	var migrations []migration
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".sql") {
+			continue
+		}
+		v, err := parseMigrationVersion(e.Name())
+		if err != nil {
+			return nil, err
+		}
+		content, err := migrationFS.ReadFile("migrations/" + e.Name())
+		if err != nil {
+			return nil, fmt.Errorf("reading migration %s: %w", e.Name(), err)
+		}
+		migrations = append(migrations, migration{
+			Version:  v,
+			Filename: e.Name(),
+			SQL:      string(content),
+		})
+	}
+
+	sort.Slice(migrations, func(i, j int) bool {
+		return migrations[i].Version < migrations[j].Version
+	})
+
+	return migrations, nil
+}
+
+// existingTablesPresent checks whether the schema already has application
+// tables (created before the migration tracking system was introduced).
+func (db *DB) existingTablesPresent() (bool, error) {
+	var q string
+	switch db.driver {
+	case "postgres":
+		q = `SELECT COUNT(*) FROM information_schema.tables WHERE table_name='teams'`
+	default:
+		q = `SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='teams'`
+	}
+	var count int
+	if err := db.conn.QueryRow(q).Scan(&count); err != nil {
+		return false, fmt.Errorf("checking existing tables: %w", err)
+	}
+	return count > 0, nil
+}
+
+func (db *DB) Migrate() error {
+	// Step 1: create the schema_migrations tracking table.
+	_, err := db.conn.Exec(`
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version    INTEGER PRIMARY KEY,
+			applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		);
+	`)
+	if err != nil {
+		return fmt.Errorf("creating schema_migrations table: %w", err)
+	}
+
+	// Step 2: determine the highest applied version.
+	var maxVersion int
+	err = db.conn.QueryRow(`SELECT COALESCE(MAX(version), 0) FROM schema_migrations`).Scan(&maxVersion)
+	if err != nil {
+		return fmt.Errorf("querying max migration version: %w", err)
+	}
+
+	// Step 3: handle existing databases that predate the migration system.
+	// If tables already exist but no migrations have been recorded, mark
+	// migration 001 as applied (it created those tables originally).
+	if maxVersion == 0 {
+		hasExisting, err := db.existingTablesPresent()
+		if err != nil {
+			return err
+		}
+		if hasExisting {
+			slog.Info("existing schema detected, recording migration 001 as already applied")
+			_, err = db.conn.Exec(`INSERT INTO schema_migrations (version) VALUES (1)`)
+			if err != nil {
+				return fmt.Errorf("recording pre-existing migration 001: %w", err)
+			}
+			maxVersion = 1
+		}
+	}
+
+	// Step 4: load all migration files.
+	migrations, err := loadMigrations()
+	if err != nil {
+		return err
+	}
+
+	// Step 5: apply unapplied migrations in order.
+	for _, m := range migrations {
+		if m.Version <= maxVersion {
+			continue
+		}
+
+		slog.Info("applying migration", "version", m.Version, "file", m.Filename)
+
+		tx, err := db.conn.Begin()
+		if err != nil {
+			return fmt.Errorf("starting transaction for migration %d: %w", m.Version, err)
+		}
+		if _, err := tx.Exec(m.SQL); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("migration %d (%s): %w", m.Version, m.Filename, err)
+		}
+		if _, err := tx.Exec(`INSERT INTO schema_migrations (version) VALUES (?)`, m.Version); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("recording migration %d: %w", m.Version, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("committing migration %d: %w", m.Version, err)
 		}
 	}
 
 	return nil
 }
-
-var migrationTeams = `
-CREATE TABLE IF NOT EXISTS teams (
-	id         TEXT PRIMARY KEY,
-	name       TEXT NOT NULL UNIQUE,
-	slack_channel TEXT,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);`
-
-var migrationUsers = `
-CREATE TABLE IF NOT EXISTS users (
-	id          TEXT PRIMARY KEY,
-	name        TEXT NOT NULL,
-	email       TEXT NOT NULL UNIQUE,
-	phone       TEXT,
-	slack_id    TEXT,
-	ntfy_topic  TEXT,
-	team_id     TEXT REFERENCES teams(id),
-	created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-);`
-
-var migrationSchedules = `
-CREATE TABLE IF NOT EXISTS schedules (
-	id              TEXT PRIMARY KEY,
-	name            TEXT NOT NULL,
-	team_id         TEXT NOT NULL REFERENCES teams(id),
-	timezone        TEXT NOT NULL DEFAULT 'UTC',
-	rotation_type   TEXT NOT NULL DEFAULT 'weekly',
-	rotation_length INTEGER NOT NULL DEFAULT 1,
-	handoff_time    TEXT NOT NULL DEFAULT '09:00',
-	handoff_day     TEXT NOT NULL DEFAULT 'monday',
-	created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS schedule_layers (
-	id          TEXT PRIMARY KEY,
-	schedule_id TEXT NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
-	priority    INTEGER NOT NULL DEFAULT 0,
-	created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS schedule_participants (
-	id       TEXT PRIMARY KEY,
-	layer_id TEXT NOT NULL REFERENCES schedule_layers(id) ON DELETE CASCADE,
-	user_id  TEXT NOT NULL REFERENCES users(id),
-	position INTEGER NOT NULL DEFAULT 0
-);`
-
-var migrationOverrides = `
-CREATE TABLE IF NOT EXISTS overrides (
-	id          TEXT PRIMARY KEY,
-	schedule_id TEXT NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
-	user_id     TEXT NOT NULL REFERENCES users(id),
-	start_time  DATETIME NOT NULL,
-	end_time    DATETIME NOT NULL,
-	reason      TEXT,
-	created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
-);`
-
-var migrationEscalationPolicies = `
-CREATE TABLE IF NOT EXISTS escalation_policies (
-	id         TEXT PRIMARY KEY,
-	name       TEXT NOT NULL,
-	team_id    TEXT NOT NULL REFERENCES teams(id),
-	repeat     INTEGER NOT NULL DEFAULT 1,
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS escalation_steps (
-	id                   TEXT PRIMARY KEY,
-	policy_id            TEXT NOT NULL REFERENCES escalation_policies(id) ON DELETE CASCADE,
-	step_order           INTEGER NOT NULL,
-	timeout_seconds      INTEGER NOT NULL DEFAULT 300,
-	notify_schedule_id   TEXT REFERENCES schedules(id),
-	notify_user_id       TEXT REFERENCES users(id),
-	notify_channel       TEXT NOT NULL DEFAULT 'slack',
-	created_at           DATETIME DEFAULT CURRENT_TIMESTAMP
-);`
-
-var migrationIntegrations = `
-CREATE TABLE IF NOT EXISTS integrations (
-	id                  TEXT PRIMARY KEY,
-	name                TEXT NOT NULL,
-	team_id             TEXT NOT NULL REFERENCES teams(id),
-	type                TEXT NOT NULL DEFAULT 'webhook',
-	escalation_policy_id TEXT REFERENCES escalation_policies(id),
-	token               TEXT NOT NULL UNIQUE,
-	created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP
-);`
-
-var migrationAlerts = `
-CREATE TABLE IF NOT EXISTS alerts (
-	id              TEXT PRIMARY KEY,
-	integration_id  TEXT NOT NULL REFERENCES integrations(id),
-	fingerprint     TEXT,
-	status          TEXT NOT NULL DEFAULT 'firing',
-	title           TEXT NOT NULL,
-	message         TEXT,
-	severity        TEXT NOT NULL DEFAULT 'warning',
-	source          TEXT,
-	acknowledged_by TEXT REFERENCES users(id),
-	acknowledged_at DATETIME,
-	resolved_at     DATETIME,
-	created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
-	updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_alerts_fingerprint ON alerts(fingerprint);
-CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status);
-CREATE INDEX IF NOT EXISTS idx_alerts_integration ON alerts(integration_id);`
-
-var migrationDeliveryAttempts = `
-CREATE TABLE IF NOT EXISTS delivery_attempts (
-	id             TEXT PRIMARY KEY,
-	alert_id       TEXT NOT NULL REFERENCES alerts(id),
-	user_id        TEXT NOT NULL REFERENCES users(id),
-	channel        TEXT NOT NULL,
-	address        TEXT NOT NULL,
-	dispatched_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	delivered_at   DATETIME,
-	acked_at       DATETIME,
-	failed_at      DATETIME,
-	failure_reason TEXT,
-	escalated_at   DATETIME
-);
-
-CREATE INDEX IF NOT EXISTS idx_delivery_alert ON delivery_attempts(alert_id);
-CREATE INDEX IF NOT EXISTS idx_delivery_user ON delivery_attempts(user_id);`
-
-var migrationNotificationRules = `
-CREATE TABLE IF NOT EXISTS notification_rules (
-	id         TEXT PRIMARY KEY,
-	user_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-	channel    TEXT NOT NULL,
-	priority   INTEGER NOT NULL DEFAULT 0,
-	start_time TEXT,
-	end_time   TEXT,
-	timezone   TEXT NOT NULL DEFAULT 'UTC',
-	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_notification_rules_user ON notification_rules(user_id);`
