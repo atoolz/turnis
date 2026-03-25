@@ -1,0 +1,17 @@
+apiVersion: v2
+name: turnis
+description: Open-source Slack-native on-call management
+type: application
+version: 0.5.0
+appVersion: "0.5.0"
+home: https://github.com/atoolz/turnis
+sources:
+  - https://github.com/atoolz/turnis
+maintainers:
+  - name: atoolz
+    url: https://github.com/atoolz
+keywords:
+  - on-call
+  - incident-management
+  - slack
+  - pagerduty-alternative

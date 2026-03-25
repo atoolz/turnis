@@ -1,0 +1,73 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/atoolz/turnis
+  tag: latest
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 8080
+
+database:
+  driver: sqlite
+  dsn: /data/turnis.db
+
+persistence:
+  enabled: true
+  size: 1Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: turnis.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+slack:
+  botToken: ""
+  appToken: ""
+  signingSecret: ""
+
+twilio:
+  accountSid: ""
+  authToken: ""
+  fromNumber: ""
+
+ntfy:
+  server: https://ntfy.sh
+
+email:
+  smtpHost: ""
+  smtpPort: 587
+  from: ""
+  username: ""
+  password: ""
+
+log:
+  level: info
+
+resources:
+  requests:
+    memory: 64Mi
+  limits:
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations: {}
+podSecurityContext: {}
+securityContext: {}
