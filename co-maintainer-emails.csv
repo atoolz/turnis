@@ -1,0 +1,7 @@
+username,name,email,source,current_company,notes
+Matvey-Kuk,Matvey Kukuy,motakuk@gmail.com,git commit (gaggimate-mcp repo),Archestra.ai,"Grafana OnCall creator / ex-Amixr CEO"
+matiasb,Matias Bordese,mbordese@gmail.com,git commit (python-unidiff repo),unknown,"Top Grafana OnCall contributor"
+joeyorlando,Joey Orlando,joseph.t.orlando@gmail.com,git commit + resume (joeyorlando.ca),Archestra.ai,"Founding Engineer at Archestra.ai"
+Ferril,Julia (Yulya) Artyukhina,Ferril.darkdiver@gmail.com,git commit (grafana/oncall),unknown (ex-Grafana),"Active OnCall contributor through Jan 2025"
+mastercactapus,Nathaniel Caza,mastercactapus@gmail.com,git commit (proxyprotocol repo),unknown,"Top GoAlert contributor"
+Dieterbe,Dieter Plaetinck,dieter@plaetinck.be,git commit (dieterblog repo),independent,"Grafana Labs founding engineer. Now helping other OSS projects."

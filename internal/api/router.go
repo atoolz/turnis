@@ -12,6 +12,7 @@ import (
 	"github.com/atoolz/turnis/internal/config"
 	"github.com/atoolz/turnis/internal/escalation"
 	"github.com/atoolz/turnis/internal/store"
+	"github.com/atoolz/turnis/internal/web"
 )
 
 func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slackClient *slack.Client) http.Handler {
@@ -88,6 +89,10 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 		r.Post("/slack/interactions", slackInteractionHandler(db, engine, slackClient, cfg.Slack.SigningSecret))
 		r.Post("/slack/commands", slackCommandsHandler(db, engine, slackClient, cfg.Slack.SigningSecret))
 	}
+
+	// Web UI: mounted last so it does not shadow API/webhook/slack routes.
+	webHandler := web.NewHandler(db)
+	r.Mount("/", webHandler)
 
 	return r
 }

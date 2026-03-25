@@ -1,0 +1,76 @@
+{{define "content"}}
+<h1>Users</h1>
+
+{{if .Users}}
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Team</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Users}}
+            <tr id="user-{{.ID}}">
+                <td>{{.Name}}</td>
+                <td>{{.Email}}</td>
+                <td>{{if .Phone}}{{.Phone}}{{else}}Not set{{end}}</td>
+                <td>{{if .TeamName}}{{.TeamName}}{{else}}Unassigned{{end}}</td>
+                <td>
+                    <button class="outline secondary"
+                            hx-get="/users/{{.ID}}/edit"
+                            hx-target="#user-{{.ID}}"
+                            hx-swap="outerHTML"
+                            style="padding:0.25em 0.6em;font-size:0.85em;margin:0">
+                        Edit
+                    </button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</figure>
+{{else}}
+<p class="empty-state">No users yet.</p>
+{{end}}
+
+<details>
+    <summary>Create user</summary>
+    <form hx-post="/users" hx-target="body" hx-swap="outerHTML">
+        <div class="grid">
+            <label for="name">Name
+                <input type="text" id="name" name="name" required>
+            </label>
+            <label for="email">Email
+                <input type="email" id="email" name="email" required>
+            </label>
+        </div>
+        <div class="grid">
+            <label for="phone">Phone
+                <input type="tel" id="phone" name="phone" placeholder="+1234567890">
+            </label>
+            <label for="team_id">Team
+                <select id="team_id" name="team_id">
+                    <option value="">No team</option>
+                    {{range .Teams}}
+                    <option value="{{.ID}}">{{.Name}}</option>
+                    {{end}}
+                </select>
+            </label>
+        </div>
+        <div class="grid">
+            <label for="slack_id">Slack ID
+                <input type="text" id="slack_id" name="slack_id" placeholder="U01ABCDEF">
+            </label>
+            <label for="ntfy_topic">ntfy topic
+                <input type="text" id="ntfy_topic" name="ntfy_topic" placeholder="my-oncall-topic">
+            </label>
+        </div>
+        <button type="submit">Create user</button>
+    </form>
+</details>
+{{end}}

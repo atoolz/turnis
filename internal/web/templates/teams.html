@@ -1,0 +1,41 @@
+{{define "content"}}
+<h1>Teams</h1>
+
+{{if .Teams}}
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Slack channel</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Teams}}
+            <tr>
+                <td><a href="/teams/{{.ID}}">{{.Name}}</a></td>
+                <td>{{if .SlackChannel}}{{.SlackChannel}}{{else}}&mdash;{{end}}</td>
+                <td>{{formatTime .CreatedAt}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</figure>
+{{else}}
+<p class="empty-state">No teams yet.</p>
+{{end}}
+
+<details>
+    <summary>Create team</summary>
+    <form hx-post="/teams" hx-target="body" hx-swap="outerHTML">
+        <label for="name">Team name
+            <input type="text" id="name" name="name" required placeholder="e.g. Platform">
+        </label>
+        <label for="slack_channel">Slack channel
+            <input type="text" id="slack_channel" name="slack_channel" placeholder="#oncall-platform (optional)">
+        </label>
+        <button type="submit">Create team</button>
+    </form>
+</details>
+{{end}}

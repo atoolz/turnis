@@ -1,0 +1,84 @@
+{{define "content"}}
+<h1>Dashboard</h1>
+
+<div class="dashboard-grid">
+    <section class="card">
+        <h2>On-call now</h2>
+        <div id="oncall-widget"
+             hx-get="/web/oncall"
+             hx-trigger="every 30s"
+             hx-swap="innerHTML">
+            {{template "oncall_inner" .}}
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Active alerts</h2>
+        <div>
+            {{if .Alerts.Total}}
+            <p>
+                {{if .Alerts.Critical}}<span class="badge badge-critical">{{.Alerts.Critical}} critical</span> {{end}}
+                {{if .Alerts.Warning}}<span class="badge badge-warning">{{.Alerts.Warning}} warning</span> {{end}}
+                {{if .Alerts.Info}}<span class="badge badge-info">{{.Alerts.Info}} info</span> {{end}}
+            </p>
+            <p><a href="/alerts">View all {{.Alerts.Total}} active alerts</a></p>
+            {{else}}
+            <p class="empty-state">No active alerts.</p>
+            {{end}}
+        </div>
+    </section>
+</div>
+
+<section>
+    <h2>Recent delivery attempts</h2>
+    {{if .Activity}}
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Channel</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Activity}}
+                <tr>
+                    <td>{{formatTime .Time}}</td>
+                    <td>{{.User}}</td>
+                    <td>{{.Channel}}</td>
+                    <td><span class="badge badge-status-{{.Status}}">{{.Status}}</span></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </figure>
+    {{else}}
+        <p class="empty-state">No recent delivery attempts.</p>
+    {{end}}
+</section>
+{{end}}
+
+{{define "oncall_inner"}}
+{{if .OnCall}}
+<table>
+    <thead>
+        <tr>
+            <th>Schedule</th>
+            <th>On-call</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .OnCall}}
+        <tr>
+            <td>{{.ScheduleName}}</td>
+            <td>{{.UserName}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p>No schedules configured.</p>
+{{end}}
+{{end}}

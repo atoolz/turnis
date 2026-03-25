@@ -1,0 +1,30 @@
+{{define "content"}}
+<h1>Schedules</h1>
+
+{{if .Schedules}}
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Rotation</th>
+                <th>On-call now</th>
+                <th>Next handoff</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Schedules}}
+            <tr>
+                <td><a href="/schedules/{{.ID}}">{{.Name}}</a></td>
+                <td>{{.HandoffDesc}}</td>
+                <td>{{.OnCallUser}}</td>
+                <td>{{.NextHandoff}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</figure>
+{{else}}
+<p class="empty-state">No schedules configured. Create one via the API.</p>
+{{end}}
+{{end}}

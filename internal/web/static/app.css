@@ -1,0 +1,137 @@
+/* Turnis custom CSS overrides for PicoCSS */
+
+/* Navigation active state */
+nav a[aria-current="page"] {
+    font-weight: bold;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+}
+
+/* Status badges */
+.badge {
+    display: inline-block;
+    padding: 0.2em 0.6em;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #fff;
+}
+
+.badge-firing, .badge-critical, .badge-status-failed {
+    background-color: #d32f2f;
+}
+
+.badge-acknowledged, .badge-warning, .badge-status-dispatched {
+    background-color: #f57c00;
+}
+
+.badge-resolved, .badge-info, .badge-status-delivered {
+    background-color: #388e3c;
+}
+
+.badge-status-acked {
+    background-color: #1976d2;
+}
+
+/* Dashboard grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Card sections */
+.card {
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
+    padding: 1.25rem;
+}
+
+.card h2 {
+    margin-top: 0;
+    font-size: 1.2rem;
+}
+
+/* Alert count summary */
+.alert-summary {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+/* Override form */
+.override-form {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--pico-muted-border-color);
+}
+
+/* Filter bar */
+.filter-bar {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.filter-bar label {
+    margin-bottom: 0;
+}
+
+.filter-bar select {
+    margin-bottom: 0;
+}
+
+/* Inline actions */
+.inline-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.inline-actions button {
+    padding: 0.25em 0.6em;
+    font-size: 0.85em;
+    margin: 0;
+}
+
+/* Footer */
+footer {
+    margin-top: 2rem;
+    padding: 1rem 0;
+    text-align: center;
+    opacity: 0.7;
+}
+
+/* htmx loading indicator */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 200ms ease-in;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+/* Truncate long text in tables */
+td.truncate {
+    max-width: 300px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    opacity: 0.7;
+}

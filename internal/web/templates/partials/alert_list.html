@@ -1,0 +1,51 @@
+{{define "alert_table_inner"}}
+{{if .Alerts}}
+<figure>
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Severity</th>
+                <th>Title</th>
+                <th>Source</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Alerts}}
+            <tr>
+                <td><span class="badge badge-{{.Status}}">{{.Status}}</span></td>
+                <td><span class="badge badge-{{.Severity}}">{{.Severity}}</span></td>
+                <td class="truncate">{{.Title}}</td>
+                <td>{{.Source}}</td>
+                <td>{{formatTime .CreatedAt}}</td>
+                <td class="inline-actions">
+                    {{if eq .Status "firing"}}
+                    <button class="outline"
+                            hx-post="/api/v1/alerts/{{.ID}}/ack"
+                            hx-target="#alert-table"
+                            hx-swap="innerHTML"
+                            hx-include=".filter-bar select">Ack</button>
+                    <button class="outline secondary"
+                            hx-post="/api/v1/alerts/{{.ID}}/resolve"
+                            hx-target="#alert-table"
+                            hx-swap="innerHTML"
+                            hx-include=".filter-bar select">Resolve</button>
+                    {{else if eq .Status "acknowledged"}}
+                    <button class="outline secondary"
+                            hx-post="/api/v1/alerts/{{.ID}}/resolve"
+                            hx-target="#alert-table"
+                            hx-swap="innerHTML"
+                            hx-include=".filter-bar select">Resolve</button>
+                    {{end}}
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</figure>
+{{else}}
+<p class="empty-state">No alerts match the current filters.</p>
+{{end}}
+{{end}}

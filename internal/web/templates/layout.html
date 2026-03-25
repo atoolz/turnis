@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{if .Title}}{{.Title}} - {{end}}Turnis</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/app.css">
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+    <nav class="container">
+        <ul>
+            <li><a href="/"><strong>Turnis</strong></a></li>
+        </ul>
+        <ul>
+            <li><a href="/" {{if eq .Nav "home"}}aria-current="page"{{end}}>Home</a></li>
+            <li><a href="/schedules" {{if eq .Nav "schedules"}}aria-current="page"{{end}}>Schedules</a></li>
+            <li><a href="/alerts" {{if eq .Nav "alerts"}}aria-current="page"{{end}}>Alerts</a></li>
+            <li><a href="/teams" {{if eq .Nav "teams"}}aria-current="page"{{end}}>Teams</a></li>
+            <li><a href="/users" {{if eq .Nav "users"}}aria-current="page"{{end}}>Users</a></li>
+        </ul>
+    </nav>
+    <main class="container">
+        {{template "content" .}}
+    </main>
+    <footer class="container">
+        <small>Turnis v0.4.0</small>
+    </footer>
+</body>
+</html>
