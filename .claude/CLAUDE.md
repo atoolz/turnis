@@ -96,6 +96,6 @@ SQLite by default. File created at `./turnis.db`. For Postgres, set `database.dr
 - Error handling: wrap errors with context using fmt.Errorf
 - Logging: slog (stdlib structured logging)
 - Testing: stdlib testing + testify for assertions
-- Database: raw SQL with sqlc for type-safe queries (no ORM)
+- Database: raw SQL with parameterized queries (no ORM)
 - API: chi router + OpenAPI spec
 - Config: viper for YAML + env var loading

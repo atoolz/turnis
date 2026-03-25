@@ -38,9 +38,9 @@ type DatabaseConfig struct {
 }
 
 type SlackConfig struct {
-	BotToken    string `mapstructure:"bot_token"`
-	AppToken    string `mapstructure:"app_token"`
-	SignSecret  string `mapstructure:"signing_secret"`
+	BotToken      string `mapstructure:"bot_token"`
+	AppToken      string `mapstructure:"app_token"`
+	SigningSecret string `mapstructure:"signing_secret"`
 }
 
 type TwilioConfig struct {
