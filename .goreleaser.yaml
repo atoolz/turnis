@@ -48,6 +48,26 @@ docker_manifests:
       - "ghcr.io/atoolz/turnis:latest-amd64"
       - "ghcr.io/atoolz/turnis:latest-arm64"
 
+brews:
+  - repository:
+      owner: atoolz
+      name: homebrew-tap
+    homepage: https://github.com/atoolz/turnis
+    description: Open-source Slack-native on-call management
+    install: bin.install "turnis"
+
+nfpms:
+  - id: turnis
+    package_name: turnis
+    vendor: AToolZ
+    homepage: https://github.com/atoolz/turnis
+    description: Open-source Slack-native on-call management
+    license: AGPL-3.0
+    formats:
+      - deb
+      - rpm
+    bindir: /usr/bin
+
 changelog:
   sort: asc
   filters:

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "turnis.fullname" . }}
+  labels:
+    {{- include "turnis.labels" . | nindent 4 }}
+data:
+  turnis.yaml: |
+    server:
+      port: {{ .Values.service.port }}
+    database:
+      driver: {{ .Values.database.driver }}
+      dsn: {{ .Values.database.dsn }}
+    ntfy:
+      server: {{ .Values.ntfy.server }}
+    {{- if .Values.email.smtpHost }}
+    email:
+      smtp_host: {{ .Values.email.smtpHost }}
+      smtp_port: {{ .Values.email.smtpPort }}
+      from: {{ .Values.email.from }}
+    {{- end }}
+    log:
+      level: {{ .Values.log.level }}
