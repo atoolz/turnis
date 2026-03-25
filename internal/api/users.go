@@ -57,6 +57,13 @@ func createUserHandler(db *store.DB) http.HandlerFunc {
 			return
 		}
 
+		if auditErr := db.RecordAudit(r.Context(), "", "user.created", "user", user.ID, map[string]string{
+			"name":  user.Name,
+			"email": user.Email,
+		}); auditErr != nil {
+			slog.Error("failed to record audit for user creation", "error", auditErr)
+		}
+
 		writeJSON(w, http.StatusCreated, user)
 	}
 }
@@ -108,6 +115,13 @@ func updateUserHandler(db *store.DB) http.HandlerFunc {
 			return
 		}
 
+		if auditErr := db.RecordAudit(r.Context(), "", "user.updated", "user", userID, map[string]string{
+			"name":  user.Name,
+			"email": user.Email,
+		}); auditErr != nil {
+			slog.Error("failed to record audit for user update", "error", auditErr)
+		}
+
 		writeJSON(w, http.StatusOK, user)
 	}
 }
@@ -120,6 +134,10 @@ func deleteUserHandler(db *store.DB) http.HandlerFunc {
 			slog.Error("failed to delete user", "error", err, "user_id", userID)
 			writeError(w, http.StatusNotFound, "user not found")
 			return
+		}
+
+		if auditErr := db.RecordAudit(r.Context(), "", "user.deleted", "user", userID, nil); auditErr != nil {
+			slog.Error("failed to record audit for user deletion", "error", auditErr)
 		}
 
 		w.WriteHeader(http.StatusNoContent)
