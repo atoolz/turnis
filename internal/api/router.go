@@ -27,12 +27,24 @@ func NewRouter(db *store.DB, cfg *config.Config) http.Handler {
 		r.Route("/teams", func(r chi.Router) {
 			r.Get("/", listTeamsHandler(db))
 			r.Post("/", createTeamHandler(db))
+			r.Get("/{teamID}", getTeamHandler(db))
+			r.Delete("/{teamID}", deleteTeamHandler(db))
+		})
+
+		r.Route("/users", func(r chi.Router) {
+			r.Get("/", listUsersHandler(db))
+			r.Post("/", createUserHandler(db))
+			r.Get("/{userID}", getUserHandler(db))
+			r.Put("/{userID}", updateUserHandler(db))
+			r.Delete("/{userID}", deleteUserHandler(db))
 		})
 
 		r.Route("/schedules", func(r chi.Router) {
 			r.Get("/", listSchedulesHandler(db))
 			r.Post("/", createScheduleHandler(db))
 			r.Get("/on-call", whosOnCallHandler(db))
+			r.Get("/{scheduleID}", getScheduleHandler(db))
+			r.Post("/{scheduleID}/overrides", createOverrideHandler(db))
 		})
 
 		r.Route("/alerts", func(r chi.Router) {
@@ -45,17 +57,18 @@ func NewRouter(db *store.DB, cfg *config.Config) http.Handler {
 		r.Route("/integrations", func(r chi.Router) {
 			r.Get("/", listIntegrationsHandler(db))
 			r.Post("/", createIntegrationHandler(db))
+			r.Delete("/{integrationID}", deleteIntegrationHandler(db))
 		})
 
 		r.Route("/escalation-policies", func(r chi.Router) {
 			r.Get("/", listPoliciesHandler(db))
 			r.Post("/", createPolicyHandler(db))
+			r.Get("/{policyID}", getPolicyHandler(db))
+			r.Delete("/{policyID}", deletePolicyHandler(db))
 		})
 	})
 
-	r.Route("/webhook/{token}", func(r chi.Router) {
-		r.Post("/", webhookIngestHandler(db, cfg))
-	})
+	r.Post("/webhook/{token}", webhookIngestHandler(db, cfg))
 
 	return r
 }
@@ -77,90 +90,4 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
-}
-
-// Placeholder handlers - to be implemented
-
-func listTeamsHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, []any{})
-	}
-}
-
-func createTeamHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func listSchedulesHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, []any{})
-	}
-}
-
-func createScheduleHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func whosOnCallHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func ingestAlertHandler(db *store.DB, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func listAlertsHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, []any{})
-	}
-}
-
-func ackAlertHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func resolveAlertHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func listIntegrationsHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, []any{})
-	}
-}
-
-func createIntegrationHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func listPoliciesHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, []any{})
-	}
-}
-
-func createPolicyHandler(db *store.DB) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
-}
-
-func webhookIngestHandler(db *store.DB, cfg *config.Config) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		writeError(w, http.StatusNotImplemented, "not implemented yet")
-	}
 }
