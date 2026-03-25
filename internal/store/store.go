@@ -23,7 +23,7 @@ func New(cfg config.DatabaseConfig) (*DB, error) {
 		if strings.Contains(cfg.DSN, "?") {
 			sep = "&"
 		}
-		dsn = cfg.DSN + sep + "_journal_mode=WAL&_busy_timeout=5000&_foreign_keys=ON"
+		dsn = cfg.DSN + sep + "_journal_mode=WAL&_busy_timeout=5000"
 	}
 
 	conn, err := sql.Open(driver, dsn)
@@ -37,6 +37,11 @@ func New(cfg config.DatabaseConfig) (*DB, error) {
 
 	if driver == "sqlite" {
 		conn.SetMaxOpenConns(1)
+		// modernc.org/sqlite does not parse _foreign_keys from DSN params.
+		// Enable foreign keys explicitly via PRAGMA.
+		if _, err := conn.Exec("PRAGMA foreign_keys = ON"); err != nil {
+			return nil, fmt.Errorf("enabling foreign keys: %w", err)
+		}
 	}
 
 	return &DB{conn: conn}, nil

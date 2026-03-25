@@ -1,0 +1,57 @@
+version: 2
+
+builds:
+  - main: ./cmd/turnis
+    binary: turnis
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    name_template: "turnis_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/atoolz/turnis:{{ .Version }}-amd64"
+      - "ghcr.io/atoolz/turnis:latest-amd64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/amd64"
+    goarch: amd64
+
+  - image_templates:
+      - "ghcr.io/atoolz/turnis:{{ .Version }}-arm64"
+      - "ghcr.io/atoolz/turnis:latest-arm64"
+    use: buildx
+    dockerfile: Dockerfile
+    build_flag_templates:
+      - "--platform=linux/arm64"
+    goarch: arm64
+
+docker_manifests:
+  - name_template: "ghcr.io/atoolz/turnis:{{ .Version }}"
+    image_templates:
+      - "ghcr.io/atoolz/turnis:{{ .Version }}-amd64"
+      - "ghcr.io/atoolz/turnis:{{ .Version }}-arm64"
+
+  - name_template: "ghcr.io/atoolz/turnis:latest"
+    image_templates:
+      - "ghcr.io/atoolz/turnis:latest-amd64"
+      - "ghcr.io/atoolz/turnis:latest-arm64"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^ci:"
+      - "^chore:"
