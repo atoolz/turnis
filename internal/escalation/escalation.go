@@ -22,26 +22,35 @@ type Step struct {
 	NotifyChannel    string `json:"notify_channel"`
 }
 
-// NextStep returns the step to execute given a current step index.
-// If all steps have been exhausted, it wraps based on the repeat count.
-// Returns nil when escalation is fully exhausted.
-func NextStep(policy *Policy, currentStep int, currentRepeat int) *Step {
+// StepResult holds the next step to execute along with the updated cursor state.
+// The caller should store NewStepIdx and NewRepeat as the new current position.
+type StepResult struct {
+	Step      *Step
+	NewStepIdx int
+	NewRepeat  int
+}
+
+// NextStep returns the next step to execute given a current step index and repeat count.
+// Returns nil Step when escalation is fully exhausted.
+// The caller MUST use NewStepIdx and NewRepeat to update cursor state,
+// rather than reimplementing the index arithmetic.
+func NextStep(policy *Policy, currentStep int, currentRepeat int) StepResult {
 	if len(policy.Steps) == 0 {
-		return nil
+		return StepResult{}
 	}
 
 	next := currentStep + 1
 	if next < len(policy.Steps) {
 		s := policy.Steps[next]
-		return &s
+		return StepResult{Step: &s, NewStepIdx: next, NewRepeat: currentRepeat}
 	}
 
 	if currentRepeat+1 < policy.Repeat {
 		s := policy.Steps[0]
-		return &s
+		return StepResult{Step: &s, NewStepIdx: 0, NewRepeat: currentRepeat + 1}
 	}
 
-	return nil
+	return StepResult{}
 }
 
 // StepTimeout returns the duration before escalating to the next step.

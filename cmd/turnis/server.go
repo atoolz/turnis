@@ -12,6 +12,10 @@ import (
 
 	"github.com/atoolz/turnis/internal/api"
 	"github.com/atoolz/turnis/internal/config"
+	"github.com/atoolz/turnis/internal/escalation"
+	"github.com/atoolz/turnis/internal/notify"
+	ntfySender "github.com/atoolz/turnis/internal/notify/ntfy"
+	webhookSender "github.com/atoolz/turnis/internal/notify/webhook"
 	"github.com/atoolz/turnis/internal/store"
 )
 
@@ -35,7 +39,15 @@ func runServer(cfg *config.Config) error {
 		return fmt.Errorf("running migrations: %w", err)
 	}
 
-	router := api.NewRouter(db, cfg)
+	dispatcher := notify.NewDispatcher()
+	dispatcher.Register(webhookSender.New())
+	dispatcher.Register(ntfySender.New(cfg.Ntfy.Server))
+
+	sa := &storeAdapter{db: db}
+	na := &dispatcherAdapter{dispatcher: dispatcher}
+	engine := escalation.NewEngine(sa, na, cfg.Server.BaseURL)
+
+	router := api.NewRouter(db, cfg, engine)
 
 	srv := &http.Server{
 		Addr:         cfg.Server.ListenAddr(),
@@ -47,7 +59,10 @@ func runServer(cfg *config.Config) error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("turnis server starting", "addr", cfg.Server.ListenAddr())
+		slog.Info("turnis server starting",
+			"addr", cfg.Server.ListenAddr(),
+			"channels", dispatcher.AvailableChannels(),
+		)
 		errCh <- srv.ListenAndServe()
 	}()
 
@@ -63,6 +78,8 @@ func runServer(cfg *config.Config) error {
 			return fmt.Errorf("server error: %w", err)
 		}
 	}
+
+	engine.Shutdown()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

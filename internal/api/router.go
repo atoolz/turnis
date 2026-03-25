@@ -9,10 +9,11 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"github.com/atoolz/turnis/internal/config"
+	"github.com/atoolz/turnis/internal/escalation"
 	"github.com/atoolz/turnis/internal/store"
 )
 
-func NewRouter(db *store.DB, cfg *config.Config) http.Handler {
+func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -48,10 +49,10 @@ func NewRouter(db *store.DB, cfg *config.Config) http.Handler {
 		})
 
 		r.Route("/alerts", func(r chi.Router) {
-			r.Post("/", ingestAlertHandler(db, cfg))
+			r.Post("/", ingestAlertHandler(db, cfg, engine))
 			r.Get("/", listAlertsHandler(db))
-			r.Post("/{alertID}/ack", ackAlertHandler(db))
-			r.Post("/{alertID}/resolve", resolveAlertHandler(db))
+			r.Post("/{alertID}/ack", ackAlertHandler(db, engine))
+			r.Post("/{alertID}/resolve", resolveAlertHandler(db, engine))
 		})
 
 		r.Route("/integrations", func(r chi.Router) {
@@ -68,7 +69,7 @@ func NewRouter(db *store.DB, cfg *config.Config) http.Handler {
 		})
 	})
 
-	r.Post("/webhook/{token}", webhookIngestHandler(db, cfg))
+	r.Post("/webhook/{token}", webhookIngestHandler(db, cfg, engine))
 
 	return r
 }
