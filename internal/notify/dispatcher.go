@@ -33,11 +33,12 @@ type Message struct {
 }
 
 type DeliveryResult struct {
-	MessageID string
-	Channel   Channel
-	Success   bool
-	Error     string
-	SentAt    time.Time
+	MessageID  string
+	ChannelRef string // Platform-specific channel identifier (e.g., Slack channel ID)
+	Channel    Channel
+	Success    bool
+	Error      string
+	SentAt     time.Time
 }
 
 type Sender interface {
