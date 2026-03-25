@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,12 +15,15 @@ import (
 // --- Fake Sender ---
 
 type fakeSender struct {
+	mu      sync.Mutex
 	channel Channel
 	calls   []Message
 	err     error
 }
 
 func (s *fakeSender) Send(_ context.Context, msg Message) (*DeliveryResult, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.calls = append(s.calls, msg)
 	if s.err != nil {
 		return nil, s.err
@@ -35,6 +39,12 @@ func (s *fakeSender) Send(_ context.Context, msg Message) (*DeliveryResult, erro
 
 func (s *fakeSender) Name() Channel {
 	return s.channel
+}
+
+func (s *fakeSender) callCount() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.calls)
 }
 
 // --- Tests ---

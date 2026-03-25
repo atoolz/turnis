@@ -2,8 +2,10 @@ package notify
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"math/rand/v2"
 	"net"
 	"strings"
@@ -279,13 +281,13 @@ func isTransient(err error) bool {
 
 	// Check for net.Error with Timeout().
 	var netErr net.Error
-	if ok := errorAs(err, &netErr); ok && netErr.Timeout() {
+	if errors.As(err, &netErr) && netErr.Timeout() {
 		return true
 	}
 
 	// Check for StatusError with 5xx.
 	var statusErr *StatusError
-	if ok := errorAs(err, &statusErr); ok {
+	if errors.As(err, &statusErr) {
 		return statusErr.StatusCode >= 500
 	}
 
@@ -299,49 +301,13 @@ func isTransient(err error) bool {
 	return false
 }
 
-// errorAs is a thin wrapper around errors.As to help with interface targets.
-// Go's errors.As requires a pointer to the target type. This helper keeps the
-// call sites readable.
-func errorAs[T any](err error, target *T) bool {
-	// Use interface-based unwrapping to walk the chain.
-	for err != nil {
-		if t, ok := any(err).(T); ok {
-			*target = t
-			return true
-		}
-		u, ok := err.(interface{ Unwrap() error })
-		if !ok {
-			return false
-		}
-		err = u.Unwrap()
-	}
-	return false
-}
-
-// backoffDuration computes the delay for the given retry attempt using
-// exponential backoff (base^(2*attempt)) with random jitter of 0-25%.
+// backoffDuration returns the delay for the given retry attempt.
+// Progression: 1s, 4s, 16s (power-of-4) with random jitter of 0-25%.
 func backoffDuration(attempt int) time.Duration {
-	// 1s, 4s, 16s for attempts 1, 2, 3
-	secs := float64(baseBackoffSec)
-	for i := 0; i < attempt; i++ {
-		secs *= secs
-		if i == 0 {
-			secs = float64(baseBackoffSec)
-			// attempt 1 => 1s, attempt 2 => 4s, attempt 3 => 16s
-		}
-	}
-	// Simpler: use power of 4 progression.
-	switch attempt {
-	case 1:
-		secs = 1
-	case 2:
-		secs = 4
-	case 3:
-		secs = 16
-	default:
+	secs := math.Pow(4, float64(attempt-1))
+	if secs > 16 {
 		secs = 16
 	}
-
 	jitter := secs * maxJitterPct * rand.Float64()
 	return time.Duration((secs + jitter) * float64(time.Second))
 }
