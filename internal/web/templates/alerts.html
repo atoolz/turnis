@@ -1,0 +1,30 @@
+{{define "content"}}
+<h1>Alerts</h1>
+
+<div class="filter-bar">
+    <label>Status
+        <select name="status" hx-get="/web/partials/alert-list" hx-target="#alert-table" hx-swap="innerHTML" hx-include="[name='severity']">
+            <option value="" {{if eq .FilterStatus ""}}>selected{{end}}>All</option>
+            <option value="firing" {{if eq .FilterStatus "firing"}}selected{{end}}>Firing</option>
+            <option value="acknowledged" {{if eq .FilterStatus "acknowledged"}}selected{{end}}>Acknowledged</option>
+            <option value="resolved" {{if eq .FilterStatus "resolved"}}selected{{end}}>Resolved</option>
+        </select>
+    </label>
+    <label>Severity
+        <select name="severity" hx-get="/web/partials/alert-list" hx-target="#alert-table" hx-swap="innerHTML" hx-include="[name='status']">
+            <option value="" {{if eq .FilterSeverity ""}}>selected{{end}}>All</option>
+            <option value="critical" {{if eq .FilterSeverity "critical"}}selected{{end}}>Critical</option>
+            <option value="warning" {{if eq .FilterSeverity "warning"}}selected{{end}}>Warning</option>
+            <option value="info" {{if eq .FilterSeverity "info"}}selected{{end}}>Info</option>
+        </select>
+    </label>
+</div>
+
+<div id="alert-table"
+     hx-get="/web/partials/alert-list"
+     hx-trigger="every 30s"
+     hx-swap="innerHTML"
+     hx-include=".filter-bar select">
+    {{template "alert_table_inner" .}}
+</div>
+{{end}}

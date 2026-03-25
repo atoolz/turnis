@@ -1,0 +1,69 @@
+{{define "content"}}
+<h1>{{.Team.Name}}</h1>
+
+<section class="card">
+    <h2>Team info</h2>
+    <table>
+        <tbody>
+            <tr><td><strong>Slack channel</strong></td><td>{{if .Team.SlackChannel}}{{.Team.SlackChannel}}{{else}}Not set{{end}}</td></tr>
+            <tr><td><strong>Created</strong></td><td>{{formatTime .Team.CreatedAt}}</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<section>
+    <h2>Members</h2>
+    {{if .Members}}
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Members}}
+                <tr>
+                    <td><a href="/users">{{.Name}}</a></td>
+                    <td>{{.Email}}</td>
+                    <td>{{if .Phone}}{{.Phone}}{{else}}Not set{{end}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </figure>
+    {{else}}
+    <p class="empty-state">No members in this team.</p>
+    {{end}}
+</section>
+
+<section>
+    <h2>Integrations</h2>
+    {{if .Integrations}}
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Webhook URL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Integrations}}
+                <tr>
+                    <td>{{.Name}}</td>
+                    <td>{{.Type}}</td>
+                    <td><code>/webhook/{{truncate .Token 16}}</code></td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </figure>
+    {{else}}
+    <p class="empty-state">No integrations configured for this team.</p>
+    {{end}}
+</section>
+{{end}}

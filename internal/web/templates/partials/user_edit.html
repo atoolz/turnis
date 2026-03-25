@@ -1,0 +1,27 @@
+{{define "user_edit_row"}}
+<tr id="user-{{.User.ID}}">
+    <form hx-put="/users/{{.User.ID}}" hx-target="body" hx-swap="outerHTML">
+        <td><input type="text" name="name" value="{{.User.Name}}" required style="margin:0"></td>
+        <td><input type="email" name="email" value="{{.User.Email}}" required style="margin:0"></td>
+        <td><input type="tel" name="phone" value="{{.User.Phone}}" style="margin:0"></td>
+        <td>
+            <select name="team_id" style="margin:0">
+                <option value="">Unassigned</option>
+                {{range .Teams}}
+                <option value="{{.ID}}" {{if eq .ID $.User.TeamID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </td>
+        <td class="inline-actions">
+            <input type="hidden" name="slack_id" value="{{.User.SlackID}}">
+            <input type="hidden" name="ntfy_topic" value="{{.User.NtfyTopic}}">
+            <button type="submit" style="padding:0.25em 0.6em;font-size:0.85em;margin:0">Save</button>
+            <button type="button" class="outline secondary"
+                    hx-get="/users"
+                    hx-target="body"
+                    hx-swap="outerHTML"
+                    style="padding:0.25em 0.6em;font-size:0.85em;margin:0">Cancel</button>
+        </td>
+    </form>
+</tr>
+{{end}}

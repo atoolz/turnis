@@ -2,6 +2,7 @@ package web
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
 	"io/fs"
 	"log/slog"
@@ -24,8 +25,9 @@ var staticFS embed.FS
 
 func NewHandler(db *store.DB) http.Handler {
 	funcMap := template.FuncMap{
-		"now": func() time.Time { return time.Now() },
-		"upper": func(s string) string { return strings.ToUpper(s) },
+		"now":        func() time.Time { return time.Now() },
+		"upper":      func(s string) string { return strings.ToUpper(s) },
+		"formatTime": func(t time.Time) string { return t.Format("2006-01-02 15:04") },
 		"truncate": func(s string, n int) string {
 			if len(s) <= n {
 				return s
@@ -40,7 +42,10 @@ func NewHandler(db *store.DB) http.Handler {
 
 	r := chi.NewRouter()
 
-	staticSub, _ := fs.Sub(staticFS, "static")
+	staticSub, err := fs.Sub(staticFS, "static")
+	if err != nil {
+		panic(fmt.Sprintf("web: failed to sub static FS: %v", err))
+	}
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(staticSub))))
 
 	r.Get("/", homeHandler(db, tmpl))
@@ -69,9 +74,11 @@ type activityEntry struct {
 }
 
 type homeData struct {
-	OnCall     []onCallEntry
-	Alerts     severityCount
-	Activity   []activityEntry
+	Title    string
+	Nav      string
+	OnCall   []onCallEntry
+	Alerts   severityCount
+	Activity []activityEntry
 }
 
 func homeHandler(db *store.DB, tmpl *template.Template) http.HandlerFunc {
@@ -91,7 +98,7 @@ func onCallPartialHandler(db *store.DB, tmpl *template.Template) http.HandlerFun
 		data := buildHomeData(db, r)
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := tmpl.ExecuteTemplate(w, "oncall_partial.html", data); err != nil {
+		if err := tmpl.ExecuteTemplate(w, "oncall_inner", data); err != nil {
 			slog.Error("failed to render oncall partial", "error", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
@@ -100,7 +107,10 @@ func onCallPartialHandler(db *store.DB, tmpl *template.Template) http.HandlerFun
 
 func buildHomeData(db *store.DB, r *http.Request) homeData {
 	ctx := r.Context()
-	data := homeData{}
+	data := homeData{
+		Title: "Dashboard",
+		Nav:   "home",
+	}
 
 	// On-call now
 	schedules, err := db.ListSchedules(ctx)

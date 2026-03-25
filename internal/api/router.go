@@ -90,6 +90,10 @@ func NewRouter(db *store.DB, cfg *config.Config, engine *escalation.Engine, slac
 		r.Post("/slack/commands", slackCommandsHandler(db, engine, slackClient, cfg.Slack.SigningSecret))
 	}
 
+	// Web UI: mounted last so it does not shadow API/webhook/slack routes.
+	webHandler := web.NewHandler(db)
+	r.Mount("/", webHandler)
+
 	return r
 }
 

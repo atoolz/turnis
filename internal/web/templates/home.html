@@ -1,40 +1,36 @@
 {{define "content"}}
 <h1>Dashboard</h1>
 
-<div class="grid">
-    <section>
+<div class="dashboard-grid">
+    <section class="card">
         <h2>On-call now</h2>
-        <div id="oncall-section"
+        <div id="oncall-widget"
              hx-get="/web/oncall"
              hx-trigger="every 30s"
              hx-swap="innerHTML">
-            {{template "oncall_list" .}}
+            {{template "oncall_inner" .}}
         </div>
     </section>
 
-    <section>
+    <section class="card">
         <h2>Active alerts</h2>
-        {{if eq .Alerts.Total 0}}
-            <p>No active alerts.</p>
-        {{else}}
+        <div>
+            {{if .Alerts.Total}}
             <p>
-                {{if gt .Alerts.Critical 0}}
-                    <span class="badge badge-critical">{{.Alerts.Critical}} critical</span>
-                {{end}}
-                {{if gt .Alerts.Warning 0}}
-                    <span class="badge badge-warning">{{.Alerts.Warning}} warning</span>
-                {{end}}
-                {{if gt .Alerts.Info 0}}
-                    <span class="badge badge-info">{{.Alerts.Info}} info</span>
-                {{end}}
+                {{if .Alerts.Critical}}<span class="badge badge-critical">{{.Alerts.Critical}} critical</span> {{end}}
+                {{if .Alerts.Warning}}<span class="badge badge-warning">{{.Alerts.Warning}} warning</span> {{end}}
+                {{if .Alerts.Info}}<span class="badge badge-info">{{.Alerts.Info}} info</span> {{end}}
             </p>
-            <p><a href="/alerts">View all alerts</a></p>
-        {{end}}
+            <p><a href="/alerts">View all {{.Alerts.Total}} active alerts</a></p>
+            {{else}}
+            <p class="empty-state">No active alerts.</p>
+            {{end}}
+        </div>
     </section>
 </div>
 
 <section>
-    <h2>Recent activity</h2>
+    <h2>Recent delivery attempts</h2>
     {{if .Activity}}
     <figure>
         <table>
@@ -49,7 +45,7 @@
             <tbody>
                 {{range .Activity}}
                 <tr>
-                    <td>{{.Time.Format "2006-01-02 15:04:05"}}</td>
+                    <td>{{formatTime .Time}}</td>
                     <td>{{.User}}</td>
                     <td>{{.Channel}}</td>
                     <td><span class="badge badge-status-{{.Status}}">{{.Status}}</span></td>
@@ -59,7 +55,30 @@
         </table>
     </figure>
     {{else}}
-        <p>No recent delivery attempts.</p>
+        <p class="empty-state">No recent delivery attempts.</p>
     {{end}}
 </section>
+{{end}}
+
+{{define "oncall_inner"}}
+{{if .OnCall}}
+<table>
+    <thead>
+        <tr>
+            <th>Schedule</th>
+            <th>On-call</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .OnCall}}
+        <tr>
+            <td>{{.ScheduleName}}</td>
+            <td>{{.UserName}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p>No schedules configured.</p>
+{{end}}
 {{end}}

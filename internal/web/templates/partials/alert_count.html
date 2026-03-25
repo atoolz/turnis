@@ -1,0 +1,18 @@
+{{define "alertcount_inner"}}
+{{if eq .AlertCount.Total 0}}
+    <p class="empty-state">No active alerts.</p>
+{{else}}
+    <div class="alert-summary">
+        {{if gt .AlertCount.Critical 0}}
+            <span class="badge badge-critical">{{.AlertCount.Critical}} critical</span>
+        {{end}}
+        {{if gt .AlertCount.Warning 0}}
+            <span class="badge badge-warning">{{.AlertCount.Warning}} warning</span>
+        {{end}}
+        {{if gt .AlertCount.Info 0}}
+            <span class="badge badge-info">{{.AlertCount.Info}} info</span>
+        {{end}}
+    </div>
+    <p style="margin-top:0.5rem"><a href="/alerts">View all alerts</a></p>
+{{end}}
+{{end}}

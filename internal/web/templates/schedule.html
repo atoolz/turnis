@@ -1,0 +1,100 @@
+{{define "content"}}
+<h1>{{.Schedule.Name}}</h1>
+
+<section class="card">
+    <h2>Schedule info</h2>
+    <table>
+        <tbody>
+            <tr><td><strong>Rotation type</strong></td><td>{{.Schedule.RotationType}}</td></tr>
+            <tr><td><strong>Handoff time</strong></td><td>{{.Schedule.HandoffTime}}</td></tr>
+            <tr><td><strong>Handoff day</strong></td><td>{{.Schedule.HandoffDay}}</td></tr>
+            <tr><td><strong>Timezone</strong></td><td>{{.Schedule.Timezone}}</td></tr>
+            <tr><td><strong>On-call now</strong></td><td>{{.OnCallUser}}</td></tr>
+        </tbody>
+    </table>
+</section>
+
+{{if .Layers}}
+<section>
+    <h2>Layers &amp; participants</h2>
+    {{range .Layers}}
+    <article>
+        <header>Layer priority: {{.Priority}}</header>
+        {{if .Participants}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Position</th>
+                    <th>User</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Participants}}
+                <tr>
+                    <td>{{.Position}}</td>
+                    <td>{{.UserName}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p>No participants in this layer.</p>
+        {{end}}
+    </article>
+    {{end}}
+</section>
+{{end}}
+
+<section>
+    <h2>Overrides</h2>
+    {{if .Overrides}}
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Overrides}}
+                <tr>
+                    <td>{{.UserName}}</td>
+                    <td>{{formatTime .StartTime}}</td>
+                    <td>{{formatTime .EndTime}}</td>
+                    <td>{{.Reason}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </figure>
+    {{else}}
+    <p>No active or upcoming overrides.</p>
+    {{end}}
+
+    <details class="override-form">
+        <summary>Create override</summary>
+        <form hx-post="/schedules/{{.Schedule.ID}}/overrides"
+              hx-target="body"
+              hx-swap="outerHTML">
+            <label for="user_id">User
+                <select id="user_id" name="user_id" required>
+                    <option value="">Select user...</option>
+                    {{range .Users}}
+                    <option value="{{.ID}}">{{.Name}}</option>
+                    {{end}}
+                </select>
+            </label>
+            <label for="end_time">End time
+                <input type="datetime-local" id="end_time" name="end_time" required>
+            </label>
+            <label for="reason">Reason
+                <input type="text" id="reason" name="reason" placeholder="Optional reason">
+            </label>
+            <button type="submit">Create override</button>
+        </form>
+    </details>
+</section>
+{{end}}
