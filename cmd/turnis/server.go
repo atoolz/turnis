@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ahlfrm/turnis/internal/api"
-	"github.com/ahlfrm/turnis/internal/config"
-	"github.com/ahlfrm/turnis/internal/store"
+	"github.com/atoolz/turnis/internal/api"
+	"github.com/atoolz/turnis/internal/config"
+	"github.com/atoolz/turnis/internal/store"
 )
 
 func loadConfig(path string) (*config.Config, error) {

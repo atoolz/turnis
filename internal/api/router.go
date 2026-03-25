@@ -8,8 +8,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/ahlfrm/turnis/internal/config"
-	"github.com/ahlfrm/turnis/internal/store"
+	"github.com/atoolz/turnis/internal/config"
+	"github.com/atoolz/turnis/internal/store"
 )
 
 func NewRouter(db *store.DB, cfg *config.Config) http.Handler {

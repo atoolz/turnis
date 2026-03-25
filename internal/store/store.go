@@ -7,7 +7,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/ahlfrm/turnis/internal/config"
+	"github.com/atoolz/turnis/internal/config"
 )
 
 type DB struct {

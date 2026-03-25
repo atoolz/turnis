@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ahlfrm/turnis/internal/notify"
+	"github.com/atoolz/turnis/internal/notify"
 )
 
 type Sender struct {

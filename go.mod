@@ -1,4 +1,4 @@
-module github.com/ahlfrm/turnis
+module github.com/atoolz/turnis
 
 go 1.23.0
 
